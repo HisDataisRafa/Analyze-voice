@@ -1,19 +1,14 @@
+import streamlit as st
 import librosa
 import numpy as np
 from scipy.stats import gaussian_kde
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
-import warnings
-warnings.filterwarnings('ignore')
+import os
+import tempfile
 
 class VoiceToneAnalyzer:
     def __init__(self, file_path):
-        """
-        Inicializa el analizador con la ruta del archivo MP3
-        
-        Args:
-            file_path (str): Ruta al archivo MP3 a analizar
-        """
         self.file_path = file_path
         self.y = None
         self.sr = None
@@ -22,15 +17,11 @@ class VoiceToneAnalyzer:
         
     def load_audio(self):
         """Carga el archivo de audio usando librosa"""
-        print("Cargando archivo de audio...")
         self.y, self.sr = librosa.load(self.file_path)
-        print(f"Audio cargado: duración = {len(self.y)/self.sr:.2f} segundos")
+        return len(self.y)/self.sr
         
     def extract_pitch(self):
         """Extrae los valores de pitch (F0) del audio"""
-        print("Extrayendo características de pitch...")
-        
-        # Extraer el pitch usando el algoritmo PYIN
         f0, voiced_flag, voiced_probs = librosa.pyin(
             self.y,
             fmin=librosa.note_to_hz('C2'),
@@ -38,25 +29,18 @@ class VoiceToneAnalyzer:
             sr=self.sr
         )
         
-        # Filtrar valores válidos de pitch
         self.pitch_values = f0[~np.isnan(f0)]
         return self.pitch_values
     
     def identify_speakers(self, n_speakers=2):
-        """
-        Identifica diferentes hablantes basándose en clusters de pitch
-        
-        Args:
-            n_speakers (int): Número esperado de hablantes
-        """
-        print("Identificando hablantes...")
-        
-        # Usar KMeans para clustering de pitch
+        """Identifica diferentes hablantes basándose en clusters de pitch"""
+        if len(self.pitch_values) == 0:
+            return None
+            
         kmeans = KMeans(n_clusters=n_speakers, random_state=42)
         pitch_2d = self.pitch_values.reshape(-1, 1)
         speaker_labels = kmeans.fit_predict(pitch_2d)
         
-        # Organizar los clusters por frecuencia media (menor = masculino)
         centroids = kmeans.cluster_centers_.flatten()
         speaker_order = np.argsort(centroids)
         
@@ -69,10 +53,12 @@ class VoiceToneAnalyzer:
     
     def analyze_tone_characteristics(self):
         """Analiza las características de tono para cada hablante"""
+        if self.speaker_segments is None:
+            return None
+            
         tone_analysis = {}
         
         for speaker, pitches in self.speaker_segments.items():
-            # Calcular estadísticas básicas
             stats = {
                 'pitch_medio': np.mean(pitches),
                 'pitch_std': np.std(pitches),
@@ -81,7 +67,6 @@ class VoiceToneAnalyzer:
                 'rango_tonal': np.max(pitches) - np.min(pitches)
             }
             
-            # Clasificar el rango vocal
             if speaker == 'Masculino':
                 if stats['pitch_medio'] < 110:
                     stats['tipo_voz'] = 'Bajo'
@@ -103,40 +88,91 @@ class VoiceToneAnalyzer:
     
     def plot_pitch_distribution(self):
         """Genera un gráfico de la distribución de pitch para cada hablante"""
-        plt.figure(figsize=(12, 6))
+        if self.speaker_segments is None:
+            return None
+            
+        fig, ax = plt.subplots(figsize=(12, 6))
         
         for speaker, pitches in self.speaker_segments.items():
             density = gaussian_kde(pitches)
             xs = np.linspace(min(pitches), max(pitches), 200)
-            plt.plot(xs, density(xs), label=speaker)
+            ax.plot(xs, density(xs), label=speaker)
         
-        plt.xlabel('Frecuencia (Hz)')
-        plt.ylabel('Densidad')
-        plt.title('Distribución de Pitch por Hablante')
-        plt.legend()
-        plt.grid(True)
-        plt.savefig('pitch_distribution.png')
-        plt.close()
+        ax.set_xlabel('Frecuencia (Hz)')
+        ax.set_ylabel('Densidad')
+        ax.set_title('Distribución de Pitch por Hablante')
+        ax.legend()
+        ax.grid(True)
+        
+        return fig
 
 def main():
-    # Ejemplo de uso
-    analyzer = VoiceToneAnalyzer('ruta_a_tu_archivo.mp3')
-    analyzer.load_audio()
-    analyzer.extract_pitch()
-    analyzer.identify_speakers()
+    st.title("Analizador de Tonos de Voz")
+    st.write("""
+    Esta aplicación analiza archivos de audio para identificar y clasificar diferentes voces,
+    distinguiendo entre voces masculinas y femeninas.
+    """)
     
-    # Analizar características de tono
-    tone_analysis = analyzer.analyze_tone_characteristics()
+    uploaded_file = st.file_uploader("Sube un archivo de audio (MP3)", type=['mp3'])
     
-    # Imprimir resultados
-    for speaker, analysis in tone_analysis.items():
-        print(f"\nAnálisis para {speaker}:")
-        print(f"Tipo de voz: {analysis['tipo_voz']}")
-        print(f"Pitch medio: {analysis['pitch_medio']:.2f} Hz")
-        print(f"Rango tonal: {analysis['rango_tonal']:.2f} Hz")
+    if uploaded_file is not None:
+        # Crear un archivo temporal para guardar el audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            temp_filename = tmp_file.name
         
-    # Generar gráfico
-    analyzer.plot_pitch_distribution()
+        try:
+            with st.spinner('Analizando el audio...'):
+                # Crear instancia del analizador
+                analyzer = VoiceToneAnalyzer(temp_filename)
+                
+                # Cargar y analizar el audio
+                duration = analyzer.load_audio()
+                st.info(f"Duración del audio: {duration:.2f} segundos")
+                
+                # Extraer pitch y identificar hablantes
+                analyzer.extract_pitch()
+                analyzer.identify_speakers()
+                
+                # Analizar características de tono
+                tone_analysis = analyzer.analyze_tone_characteristics()
+                
+                if tone_analysis:
+                    # Mostrar resultados
+                    st.subheader("Resultados del Análisis")
+                    
+                    for speaker, analysis in tone_analysis.items():
+                        st.write(f"\n**{speaker}**:")
+                        st.write(f"- Tipo de voz: {analysis['tipo_voz']}")
+                        st.write(f"- Pitch medio: {analysis['pitch_medio']:.2f} Hz")
+                        st.write(f"- Rango tonal: {analysis['rango_tonal']:.2f} Hz")
+                    
+                    # Mostrar gráfico
+                    st.subheader("Distribución de Pitch")
+                    fig = analyzer.plot_pitch_distribution()
+                    if fig:
+                        st.pyplot(fig)
+                else:
+                    st.error("No se pudieron detectar voces claramente en el audio.")
+                    
+        except Exception as e:
+            st.error(f"Error al procesar el archivo: {str(e)}")
+            
+        finally:
+            # Limpiar el archivo temporal
+            os.unlink(temp_filename)
+    
+    st.markdown("""
+    ### Instrucciones de uso:
+    1. Sube un archivo MP3 que contenga voces de dos personas (preferiblemente un hombre y una mujer)
+    2. Espera mientras el sistema analiza el audio
+    3. Revisa los resultados del análisis y la visualización
+    
+    ### Notas:
+    - El audio debe tener buena calidad para mejores resultados
+    - Se recomienda que los hablantes hablen por separado
+    - La duración óptima del audio es entre 10 y 60 segundos
+    """)
 
 if __name__ == "__main__":
     main()
