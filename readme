@@ -1,0 +1,87 @@
+# Analizador de Tonos de Voz
+
+Este proyecto es un analizador de tonos de voz que puede identificar y clasificar diferentes voces en un archivo de audio MP3, distinguiendo entre voces masculinas y femeninas, y proporcionando análisis detallado de las características tonales de cada hablante.
+
+## Características
+
+- Análisis de archivos MP3
+- Detección automática de diferentes hablantes
+- Clasificación de tipos de voz (Bajo, Barítono, Tenor, Contralto, Mezzosoprano, Soprano)
+- Análisis estadístico de pitch
+- Visualización de la distribución de pitch
+- Soporte para identificación de dos hablantes (expandible)
+
+## Requisitos del Sistema
+
+- Python 3.8 o superior
+- Bibliotecas Python especificadas en `requirements.txt`
+
+## Instalación
+
+1. Clona este repositorio:
+```bash
+git clone https://github.com/tu-usuario/analizador-tonos-voz.git
+cd analizador-tonos-voz
+```
+
+2. Crea un entorno virtual (recomendado):
+```bash
+python -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+```
+
+3. Instala las dependencias:
+```bash
+pip install -r requirements.txt
+```
+
+## Uso
+
+1. Coloca tu archivo MP3 en el directorio del proyecto
+
+2. Modifica la ruta del archivo en el script principal:
+```python
+analyzer = VoiceToneAnalyzer('ruta_a_tu_archivo.mp3')
+```
+
+3. Ejecuta el script:
+```bash
+python voice_analyzer.py
+```
+
+## Resultados
+
+El programa generará:
+- Análisis detallado de las características vocales de cada hablante
+- Gráfico de distribución de pitch guardado como 'pitch_distribution.png'
+- Clasificación del tipo de voz para cada hablante
+
+## Estructura del Proyecto
+
+```
+analizador-tonos-voz/
+│
+├── voice_analyzer.py     # Script principal
+├── requirements.txt      # Dependencias del proyecto
+├── README.md            # Documentación
+│
+└── examples/            # Ejemplos de audio (no incluidos)
+```
+
+## Contribuir
+
+1. Haz un Fork del proyecto
+2. Crea una rama para tu característica (`git checkout -b feature/AmazingFeature`)
+3. Haz commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE.md](LICENSE.md) para más detalles.
+
+## Contacto
+
+Tu Nombre - [@tu_twitter](https://twitter.com/tu_twitter) - email@ejemplo.com
+
+Link del Proyecto: [https://github.com/tu-usuario/analizador-tonos-voz](https://github.com/tu-usuario/analizador-tonos-voz)
